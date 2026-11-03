@@ -1,0 +1,37 @@
+# Compiles AppIcon.icon into Assets.car, the app icon macOS 26 and later
+# shows, with Xcode's actool. Run it from the Actions tab; the result is
+# attached to the run as an artifact.
+name: Build Assets.car
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode 26
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          xcodebuild -version
+          xcrun actool --version
+
+      - name: Compile the icon
+        run: |
+          mkdir -p out
+          xcrun actool AppIcon.icon --compile out \
+            --output-format human-readable-text --notices --warnings \
+            --output-partial-info-plist out/assetcatalog_generated_info.plist \
+            --app-icon AppIcon --include-all-app-icons \
+            --enable-on-demand-resources NO --development-region en \
+            --target-device mac --minimum-deployment-target 26.0 --platform macosx
+          ls -la out
+          test -f out/Assets.car
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Assets.car
+          path: out/
